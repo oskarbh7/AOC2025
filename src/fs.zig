@@ -6,7 +6,7 @@
 
 const std = @import("std");
 
-const MAX_BYTES = 1 << 12;
+const MAX_BYTES = 1 << 16;
 var buffer: [MAX_BYTES]u8 = undefined;
 
 pub fn read(path: []const u8) ![]u8 {

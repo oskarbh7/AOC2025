@@ -8,6 +8,19 @@ const std = @import("std");
 const fs = @import("fs.zig");
 const net = @import("net.zig");
 
+pub fn header(day: u32, n: u32) void {
+    const str =
+        \\
+        \\==============
+        \\Advent of Code
+        \\  Day {}
+        \\  Problem {}
+        \\==============
+        \\
+    ;
+    std.debug.print(str ++ "\n", .{ day, n });
+}
+
 pub fn get(day: u64) ![]u8 {
     _ = std.fs.cwd().openDir("input", .{}) catch |e| {
         switch (e) {
