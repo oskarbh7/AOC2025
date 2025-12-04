@@ -9,4 +9,5 @@ comptime {
     _ = @import("one.zig");
     _ = @import("two.zig");
     _ = @import("three.zig");
+    _ = @import("four.zig");
 }
