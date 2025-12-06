@@ -11,6 +11,7 @@ const two = @import("two.zig");
 const three = @import("three.zig");
 const four = @import("four.zig");
 const five = @import("five.zig");
+const six = @import("six.zig");
 
 var gpa = @import("std").heap.DebugAllocator(.{}).init;
 const allocator = gpa.allocator();
@@ -20,5 +21,6 @@ pub fn main() !void {
     // try two.run();
     // try three.run();
     // try four.run();
-    try five.run();
+    // try five.run();
+    try six.run();
 }
