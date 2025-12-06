@@ -71,86 +71,75 @@ fn first() !void {
 }
 
 fn second() !void {
-    input.header(6, 2);
+    input.header(6, 3);
     const in = try input.get(6);
+    const M = try toLineMat(in);
+    defer gpa.free(M.matrix);
 
-    var ops: ArrayList(u8) = .empty;
-    defer ops.clearAndFree(gpa);
-    var rows: ArrayList([]const u8) = .empty;
-    defer rows.clearAndFree(gpa);
-    var in_it = std.mem.splitScalar(u8, in, '\n');
-    while (in_it.next()) |line| {
-        if (std.mem.indexOfAny(u8, line, "*+") != null) {
-            var line_it = std.mem.splitScalar(u8, line, ' ');
-            while (line_it.next()) |line_col| {
-                if (line_col.len == 0) {
-                    continue;
-                }
-                try ops.append(gpa, line_col[0]);
+    var op: u8 = ' ';
+    var sum_cur: u64 = 0;
+    var sum_total: u64 = 0;
+    for (0..M.cols) |i| {
+        if (op == ' ') {
+            op = parseOp(M.matrix, i);
+            sum_cur = switch (op) {
+                '*' => 1,
+                '+' => 0,
+                else => unreachable,
+            };
+        }
+
+        const col_num = parseIntV(M.matrix, i);
+        if (col_num == 0) {
+            sum_total += sum_cur;
+            op = ' ';
+            continue;
+        }
+
+        sum_cur = switch (op) {
+            '*' => sum_cur * col_num,
+            '+' => sum_cur + col_num,
+            else => unreachable,
+        };
+    }
+    sum_total += sum_cur;
+
+    std.debug.print("Grand total: {}\n", .{sum_total});
+}
+
+fn toLineMat(buf: []const u8) !struct { matrix: [][]const u8, rows: u64, cols: u64 } {
+    const row_count = std.mem.count(u8, buf, "\n");
+    const row_len = if (std.mem.indexOf(u8, buf, "\n")) |i| i else unreachable;
+    var mat = try gpa.alloc([]const u8, row_count);
+
+    var line_it = std.mem.splitScalar(u8, buf, '\n');
+    for (0..row_count) |i| {
+        const line = line_it.next();
+        if (line) |l| {
+            if (l.len == 0) {
+                break;
             }
+            mat[i] = l;
+        } else {
             break;
         }
-
-        try rows.append(gpa, line);
     }
 
-    var col_all_spaces = try gpa.alloc(bool, rows.items[0].len);
-    defer gpa.free(col_all_spaces);
-    @memset(col_all_spaces, true);
-    for (rows.items) |row| {
-        for (row, 0..) |char, i| {
-            if (char != ' ') {
-                col_all_spaces[i] = false;
-            }
-        }
+    return .{ .matrix = mat, .cols = row_len, .rows = row_count };
+}
+
+fn parseIntV(buf: [][]const u8, col_idx: u64) u64 {
+    var bufv = gpa.alloc(u8, buf.len) catch unreachable;
+    @memset(bufv, ' ');
+    defer gpa.free(bufv);
+
+    for (0..buf.len) |i| {
+        bufv[i] = buf[i][col_idx];
     }
 
-    const col_count = std.mem.count(bool, col_all_spaces, &.{true}) + 1;
-    var col_indices = try gpa.alloc([2]u64, col_count);
-    defer gpa.free(col_indices);
-    var col_idx_prev: u64 = 0;
-    var col_break_idx: u64 = 0;
-    for (0..col_all_spaces.len) |i| {
-        if (col_all_spaces[i]) {
-            col_indices[col_break_idx][0] = col_idx_prev;
-            col_indices[col_break_idx][1] = i;
-            col_break_idx += 1;
-            col_idx_prev = i + 1;
-        }
-    }
-    col_indices[col_break_idx][0] = col_idx_prev;
-    col_indices[col_break_idx][1] = rows.items[0].len;
+    return std.fmt.parseInt(u64, std.mem.trim(u8, bufv, " *+"), 10) catch 0;
+}
 
-    var col_numbers: ArrayList(ArrayList(u64)) = .empty;
-    for (0..col_count) |_| {
-        try col_numbers.append(gpa, .empty);
-    }
-
-    var sum: u64 = 0;
-    for (0..col_count) |col_idx| {
-        var col_total: u64 = if (ops.items[col_idx] == '*') 1 else 0;
-
-        const col_start = col_indices[col_idx][0];
-        const col_end = col_indices[col_idx][1];
-        for (col_start..col_end) |line_idx| {
-            var col_num_buffer: [32]u8 = undefined;
-            var col_num_buffer_idx: u64 = 0;
-            for (0..rows.items.len) |row_idx| {
-                const char = rows.items[row_idx][line_idx];
-                col_num_buffer[col_num_buffer_idx] = char;
-                col_num_buffer_idx += 1;
-            }
-
-            const col_num_buffer_trim = std.mem.trim(u8, col_num_buffer[0..col_num_buffer_idx], " ");
-            const col_num = try std.fmt.parseInt(u64, col_num_buffer_trim, 10);
-            switch (ops.items[col_idx]) {
-                '*' => col_total *= col_num,
-                '+' => col_total += col_num,
-                else => unreachable,
-            }
-        }
-        sum += col_total;
-    }
-
-    std.debug.print("Grand total: {}\n", .{sum});
+fn parseOp(buf: [][]const u8, col_idx: u64) u8 {
+    return buf[buf.len - 1][col_idx];
 }
