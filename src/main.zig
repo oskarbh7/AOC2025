@@ -12,15 +12,22 @@ const three = @import("three.zig");
 const four = @import("four.zig");
 const five = @import("five.zig");
 const six = @import("six.zig");
+const seven = @import("seven.zig");
 
-var gpa = @import("std").heap.DebugAllocator(.{}).init;
-const allocator = gpa.allocator();
+const page_allocator = @import("std").heap.page_allocator;
+var arena_allocator = @import("std").heap.ArenaAllocator.init(page_allocator);
+// var gpa = @import("std").heap.DebugAllocator(.{}).init;
+// const allocator = gpa.allocator();
 
 pub fn main() !void {
+    const arena = arena_allocator.allocator();
+    defer _ = arena_allocator.reset(.retain_capacity);
+
     // try one.run();
     // try two.run();
     // try three.run();
     // try four.run();
     // try five.run();
-    try six.run();
+    // try six.run();
+    try seven.run(arena);
 }

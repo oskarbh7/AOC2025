@@ -130,8 +130,8 @@ fn toLineMat(buf: []const u8) !struct { matrix: [][]const u8, rows: u64, cols: u
 
 fn parseIntV(buf: [][]const u8, col_idx: u64) u64 {
     var bufv = gpa.alloc(u8, buf.len) catch unreachable;
-    @memset(bufv, ' ');
     defer gpa.free(bufv);
+    @memset(bufv, ' ');
 
     for (0..buf.len) |i| {
         bufv[i] = buf[i][col_idx];
