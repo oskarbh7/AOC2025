@@ -13,6 +13,7 @@ const four = @import("four.zig");
 const five = @import("five.zig");
 const six = @import("six.zig");
 const seven = @import("seven.zig");
+const eight = @import("eight.zig");
 
 const page_allocator = @import("std").heap.page_allocator;
 var arena_allocator = @import("std").heap.ArenaAllocator.init(page_allocator);
@@ -29,5 +30,6 @@ pub fn main() !void {
     // try four.run();
     // try five.run();
     // try six.run();
-    try seven.run(arena);
+    // try seven.run(arena);
+    try eight.run(arena);
 }
