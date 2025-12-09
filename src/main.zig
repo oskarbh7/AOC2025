@@ -5,6 +5,8 @@
 //!
 
 const std = @import("std");
+const ArrayList = @import("std").ArrayList;
+const print = @import("std").debug.print;
 
 const one = @import("one.zig");
 const two = @import("two.zig");
@@ -14,11 +16,10 @@ const five = @import("five.zig");
 const six = @import("six.zig");
 const seven = @import("seven.zig");
 const eight = @import("eight.zig");
+const nine = @import("nine.zig");
 
 const page_allocator = @import("std").heap.page_allocator;
 var arena_allocator = @import("std").heap.ArenaAllocator.init(page_allocator);
-// var gpa = @import("std").heap.DebugAllocator(.{}).init;
-// const allocator = gpa.allocator();
 
 pub fn main() !void {
     const arena = arena_allocator.allocator();
@@ -31,5 +32,6 @@ pub fn main() !void {
     // try five.run();
     // try six.run();
     // try seven.run(arena);
-    try eight.run(arena);
+    // try eight.run(arena);
+    try nine.run(arena);
 }
