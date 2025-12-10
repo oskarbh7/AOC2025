@@ -7,6 +7,7 @@
 const std = @import("std");
 const ArrayList = @import("std").ArrayList;
 const print = @import("std").debug.print;
+const common = @import("common.zig");
 
 const one = @import("one.zig");
 const two = @import("two.zig");
