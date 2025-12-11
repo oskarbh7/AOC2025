@@ -5,108 +5,83 @@
 //!
 
 const std = @import("std");
-const ArrayList = @import("std").ArrayList;
+const Allocator = @import("std").mem.Allocator;
+const List = @import("std").ArrayList;
 const HashMap = @import("std").AutoHashMap;
 const input = @import("input.zig");
 const print = @import("std").debug.print;
+
+const Vec = @Vector(2, i64);
+const Line = struct {
+    a: Vec,
+    b: Vec,
+
+    pub fn init(a: Vec, b: Vec) Line {
+        return .{ .a = a, .b = b };
+    }
+
+    pub fn getDir(self: Line) Vec {
+        return self.b - self.a;
+    }
+
+    pub fn containsPoint(self: Line, p: Vec) bool {
+        const dir_self: Vec = self.b - self.a;
+        const dir_self_p: Vec = p - self.a;
+        if (crossSign(dir_self, dir_self_p) != 0) {
+            return false;
+        }
+
+        const x_min = @min(self.a[0], self.b[0]);
+        const x_max = @max(self.a[0], self.b[0]);
+        const y_min = @min(self.a[1], self.b[1]);
+        const y_max = @max(self.a[1], self.b[1]);
+        return x_min <= p[0] and p[0] <= x_max and
+            y_min <= p[1] and p[1] <= y_max;
+    }
+
+    pub fn intersects(self: Line, other: Line) bool {
+        const a1_b1: Vec = other.a - self.a;
+        const a1_b2: Vec = other.b - self.a;
+        const b1_a1: Vec = self.a - other.a;
+        const b1_a2: Vec = self.b - other.a;
+
+        const sign_1 = crossSign(self.b - self.a, a1_b1);
+        const sign_2 = crossSign(self.b - self.a, a1_b2);
+        const sign_3 = crossSign(other.b - other.a, b1_a1);
+        const sign_4 = crossSign(other.b - other.a, b1_a2);
+
+        return sign_1 != sign_2 and sign_3 != sign_4;
+    }
+
+    pub fn crossSign(a: Vec, b: Vec) i64 {
+        const cross = a[0] * b[1] - a[1] * b[0];
+        return if (cross < 0) -1 else if (cross > 0) 1 else 0;
+    }
+
+    /// Sorting
+    pub fn ascVert(_: void, self: Line, other: Line) bool {
+        return self.a[0] < other.a[0];
+    }
+
+    pub fn ascHorz(_: void, self: Line, other: Line) bool {
+        return self.a[1] < other.a[1];
+    }
+};
+
+pub fn normalize(vec: Vec) Vec {
+    return .{
+        if (vec[0] < 0) -1 else if (vec[0] > 0) 1 else 0,
+        if (vec[1] < 0) -1 else if (vec[1] > 0) 1 else 0,
+    };
+}
 
 pub fn run(arena: std.mem.Allocator) !void {
     try first(arena);
     try second(arena);
 }
 
-const Vec = @Vector(2, i64);
-const Edge = [2]Vec;
-const Line = [2]Vec;
-const Rect = struct {
-    a: Vec,
-    b: Vec,
-    T: u64,
-
-    pub fn init(a: Vec, b: Vec) Rect {
-        return .{ .a = a, .b = b, .T = calcArea(a, b) };
-    }
-
-    pub fn greaterThan(_: void, a: Rect, b: Rect) bool {
-        return a.T > b.T;
-    }
-};
-
-fn calcArea(a: Vec, b: Vec) u64 {
-    return @abs(a[0] - b[0] + 1) * @abs(a[0] - b[1] + 1);
-}
-
-fn rayR(a: Vec) Line {
-    const right: Vec = .{ 1000, 0 };
-    return .{ a, a + right };
-}
-
-fn crossZSign(a: Line, b: Line) i64 {
-    const a_dir = dirVec(a);
-    const b_dir = dirVec(b);
-    const cross = a_dir[0] * b_dir[1] - a_dir[1] * b_dir[0];
-    return if (cross < 0) -1 else if (cross > 0) 1 else 0;
-}
-
-fn dirVec(a: Line) Vec {
-    return a[1] - a[0];
-}
-
-fn dirNorm(a: Line) Vec {
-    const dir = dirVec(a);
-    return .{
-        if (dir[0] > 0) 1 else if (dir[0] < 0) -1 else 0,
-        if (dir[1] > 0) 1 else if (dir[1] < 0) -1 else 0,
-    };
-}
-
-fn pointOfIntersection(a: Line, b: Line) Vec {
-    const a_dir = dirNorm(a);
-    const b_dir = dirNorm(b);
-
-    var a_p = a[0];
-    while (true) {
-        defer a_p += a_dir;
-        var b_p = b[0];
-        while (true) {
-            defer b_p += b_dir;
-            if (std.mem.eql(Vec, &.{a_p}, &.{b_p})) {
-                return a_p;
-            }
-
-            if (std.mem.eql(Vec, &.{b_p}, &.{b[1]})) {
-                break;
-            }
-        }
-
-        if (std.mem.eql(Vec, &.{a_p}, &.{a[1]})) {
-            break;
-        }
-    }
-
-    return .{ -1, -1 };
-}
-
-/// Ignores colinear intersections
-fn doIntersect(a: Line, b: Line) bool {
-    const a1b1: Line = .{ a[0], b[0] };
-    const a1b2: Line = .{ a[0], b[1] };
-    const b1a1: Line = .{ b[0], a[0] };
-    const b1a2: Line = .{ b[0], a[1] };
-
-    const Z1 = crossZSign(a, a1b1);
-    const Z2 = crossZSign(a, a1b2);
-    const Z3 = crossZSign(b, b1a1);
-    const Z4 = crossZSign(b, b1a2);
-
-    return Z1 != Z2 and Z3 != Z4;
-}
-
-fn second(arena: std.mem.Allocator) !void {
-    input.header(9, 2);
-    const buf_w = 100;
-    const buf_h = 11;
-    var buf: [buf_w * buf_h]u8 = undefined;
+fn first(arena: std.mem.Allocator) !void {
+    input.header(9, 1);
     // const in = try input.get(9);
     const in =
         \\7,1
@@ -120,106 +95,237 @@ fn second(arena: std.mem.Allocator) !void {
         \\
     ;
 
+    var area_max: u64 = 0;
     const points = try parseInput(arena, in);
-    const lines = try makePolyLines(arena, points);
-    const rects = try makeRects(arena, points);
-    // const N = points.len;
-
-    print("Points:\n", .{});
-    for (points) |p| print("{any}\n", .{p});
-    print("Lines:\n", .{});
-    for (lines) |l| print("{any}\n", .{l});
-    print("Rects:\n", .{});
-    for (rects) |r| print("{any}\n", .{r});
-
-    resetBuf(&buf);
-    printPolygon(&buf, buf_w, 1, 1, points, '#', "main {}", .{2});
-    printBuf(&buf, buf_w, buf_h);
-
-    const poly_m = measurePolygon(points);
-    const lines_to_intersect = [_]Line{
-        .{ .{ 2, 3 }, .{ 7, 3 } },
-        .{ .{ 9, 5 }, .{ 9, 7 } },
-    };
-
-    for (0..buf_h - 1) |y| {
-        const padding = 4;
-        const x_offs: [2]u64 = .{ 1 * poly_m.width, 2 * poly_m.width + padding };
-        const line: Line = .{ .{ 0, @intCast(y) }, .{ @intCast(poly_m.width - 1), @intCast(y) } };
-
-        print("line: {any}, lines_to_intersect: {any}\n", .{ line, lines_to_intersect });
-
-        resetBuf(&buf);
-        for (lines_to_intersect, 0..) |li, i| {
-            const did_intersect = doIntersect(line, li);
-            printPolygon(&buf, buf_w, x_offs[i], 0, &li, 'O', "is:{}", .{did_intersect});
-            printPolygon(&buf, buf_w, x_offs[i], 0, &line, '#', "is:{}", .{did_intersect});
-        }
-        printBuf(&buf, buf_w, buf_h);
-    }
-
-    for (0..poly_m.width) |x| {
-        const padding = 4;
-        const x_offs: [2]u64 = .{ 1 * poly_m.width, 2 * poly_m.width + padding };
-        const line: Line = .{ .{ @intCast(x), 0 }, .{ @intCast(x), @intCast(poly_m.width - 1) } };
-
-        print("line: {any}, lines_to_intersect: {any}\n", .{ line, lines_to_intersect });
-
-        resetBuf(&buf);
-        for (lines_to_intersect, 0..) |li, i| {
-            const did_intersect = doIntersect(line, li);
-            print("intersect at: {any}\n", .{pointOfIntersection(line, li)});
-            printPolygon(&buf, buf_w, x_offs[i], 0, &li, 'O', "is:{}", .{did_intersect});
-            printPolygon(&buf, buf_w, x_offs[i], 0, &line, '#', "is:{}", .{did_intersect});
-        }
-        printBuf(&buf, buf_w, buf_h);
-    }
-
-    const final_rect: ?Rect = null;
-    if (final_rect) |r| {
-        print("Largest possible rectangle area: {any}\n", .{r});
-    }
-}
-
-fn isInside(p: Vec, line: Edge) bool {
-    const p1 = line[0];
-    const p2 = line[1];
-    if (p[0] == p1[0] and p[0] == p2[0]) {
-        if (@min(p1[1], p2[1]) <= p[1] and p[1] <= @max(p1[1], p2[1])) {
-            return true;
-        }
-    }
-    if (p[1] == p1[1] and p[1] == p2[1]) {
-        if (@min(p1[0], p2[0]) <= p[0] and p[0] <= @max(p1[0], p2[0])) {
-            return true;
-        }
-    }
-    return false;
-}
-
-fn makeRects(arena: std.mem.Allocator, points: []Vec) ![]Rect {
-    var rects: ArrayList(Rect) = .empty;
     for (0..points.len) |i| {
         for (i + 1..points.len) |j| {
-            try rects.append(arena, .init(points[i], points[j]));
+            area_max = @max(area_max, calcArea(points[i], points[j]));
         }
     }
-    return try rects.toOwnedSlice(arena);
+
+    print("Largest area: {}\n", .{area_max});
 }
 
-fn makePolyLines(arena: std.mem.Allocator, poly_corners: []Vec) ![]Line {
-    var lines: ArrayList(Edge) = .empty;
-    for (0..poly_corners.len) |i| {
-        try lines.append(arena, .{
-            poly_corners[i],
-            poly_corners[(i + 1) % poly_corners.len],
-        });
+fn second(arena: std.mem.Allocator) !void {
+    input.header(9, 2);
+    const in = try input.get(9);
+    // const in =
+    //     \\7,1
+    //     \\11,1
+    //     \\11,7
+    //     \\9,7
+    //     \\9,5
+    //     \\2,5
+    //     \\2,3
+    //     \\7,3
+    //     \\
+    // ;
+
+    const points = try parseInput(arena, in);
+    const lines = try makeLines(arena, points);
+    var lines_vert: List(Line) = .empty;
+    var lines_horz: List(Line) = .empty;
+
+    for (lines) |line| {
+        print("{any}: ", .{line});
+        if (line.a[0] == line.b[0]) {
+            try lines_vert.append(arena, line);
+            print("vert\n", .{});
+        } else {
+            try lines_horz.append(arena, line);
+            print("horz\n", .{});
+        }
+    }
+
+    std.sort.pdq(Line, lines_vert.items, {}, Line.ascVert);
+    std.sort.pdq(Line, lines_horz.items, {}, Line.ascHorz);
+    print("\n\n", .{});
+
+    var area_max: u64 = 0;
+    var rect_corners: [4]Vec = undefined;
+    for (0..points.len) |i| {
+        rect_corners[0] = points[i];
+
+        j_loop: for (i + 1..points.len) |j| {
+            rect_corners[2] = points[j];
+            rect_corners[1] = .{ rect_corners[0][0], rect_corners[2][1] };
+            rect_corners[3] = .{ rect_corners[2][0], rect_corners[0][1] };
+
+            print("Testing the rectangle {any}\n", .{rect_corners});
+
+            const T = calcArea(rect_corners[0], rect_corners[2]);
+            if (T <= area_max) {
+                // print("\t{any} has too low area ({}), skipping...\n", .{ rect_corners, T });
+                continue;
+            }
+
+            // Corner tests
+            for (rect_corners) |corner| {
+                const vert_i = indexOfClosestLineX(lines_vert.items, corner);
+                const horz_i = indexOfClosestLineY(lines_horz.items, corner);
+
+                const line_closest_vert = lines_vert.items[vert_i];
+                const line_closest_horz = lines_horz.items[horz_i];
+
+                // Passed; inside
+                if (line_closest_vert.containsPoint(corner) or
+                    line_closest_horz.containsPoint(corner))
+                {
+                    print("\t{any} passed the line-containment test\n", .{corner});
+                    continue;
+                }
+
+                const ray: Line = .init(corner + Vec{ 1, 0 }, corner + Vec{ 1 << 20, 0 });
+
+                var did_intersect = false;
+                for (vert_i..lines_vert.items.len) |k| {
+                    const line_to_intersect = lines_vert.items[k];
+                    if (!ray.intersects(line_to_intersect)) {
+                        continue;
+                    }
+
+                    did_intersect = true;
+                    const cross_sign = Line.crossSign(ray.getDir(), line_to_intersect.getDir());
+                    // print("{any} intersects {any} with cross sign {}\n", .{ ray, line_to_intersect, cross_sign });
+                    // Passed; outside
+                    if (cross_sign > 0) {
+                        print(
+                            "\t{any} passed the ray cast test (sign:{}, line: {any})\n",
+                            .{ corner, cross_sign, line_to_intersect },
+                        );
+                        break;
+                    }
+
+                    print("\t{any} FAILED the ray cast test\n", .{corner});
+                    continue :j_loop;
+                }
+
+                if (!did_intersect) {
+                    continue :j_loop;
+                }
+
+                // const closest_vert = lines_vert.items[closest_vert_i];
+                // const closest_horz = lines_horz.items[closest_horz_i];
+
+                // print("closest line vert to {any} is {any}\n", .{ corner, closest_vert });
+                // print("closest line horz to {any} is {any}\n", .{ corner, closest_horz });
+            }
+
+            // Line tests
+            const dir1 = normalize(rect_corners[1] - rect_corners[0]);
+            const dir2 = normalize(rect_corners[2] - rect_corners[1]);
+            const dir3 = normalize(rect_corners[3] - rect_corners[2]);
+            const dir4 = normalize(rect_corners[0] - rect_corners[3]);
+            const rect_lines: [4]Line = .{
+                .init(rect_corners[0] + dir1, rect_corners[1] - dir1),
+                .init(rect_corners[1] + dir2, rect_corners[2] - dir2),
+                .init(rect_corners[2] + dir3, rect_corners[3] - dir3),
+                .init(rect_corners[3] + dir4, rect_corners[0] - dir4),
+            };
+
+            var x_min: i64 = 0;
+            var x_max: i64 = 0;
+            for (rect_corners) |corner| {
+                x_min = @min(x_min, corner[0]);
+                x_max = @max(x_max, corner[0]);
+            }
+
+            print(
+                "These corners: {any} and these lines: {any}\n",
+                .{ rect_corners, rect_lines },
+            );
+
+            for (rect_lines) |line| {
+                var idx = indexOfClosestLineX(lines_vert.items, .{ x_min, 0 });
+                while (lines_vert.items[idx].a[0] <= x_max) {
+                    const dir = normalize(lines_vert.items[idx].getDir());
+                    const line_to_test = lines_vert.items[idx];
+                    const line_to_test_cut: Line = .init(line_to_test.a + dir, line_to_test.b - dir);
+                    print(
+                        "\tintersection testing {any} against {any}\n",
+                        .{ line, line_to_test_cut },
+                    );
+                    if (line.intersects(line_to_test_cut)) {
+                        print(
+                            "\t{any} FAILED the rect-line intersection test (against {any})\n",
+                            .{ line, line_to_test_cut },
+                        );
+                        continue :j_loop;
+                    }
+                    idx += 1;
+                    if (idx == lines_vert.items.len) {
+                        break;
+                    }
+                }
+
+                print("\t{any} passed the rect-line intersection test\n", .{line});
+            }
+
+            area_max = T;
+        }
+    }
+
+    print("Largest area: {}\n", .{area_max});
+}
+
+fn indexOfClosestLineX(lines: []Line, point: Vec) u64 {
+    var lo: u64 = 0;
+    var hi: u64 = lines.len;
+    while (lo < hi) {
+        const mid = (hi + lo) / 2;
+        const l = lines[mid];
+        if (point[0] < l.a[0]) {
+            hi = mid;
+        } else if (point[0] > l.a[0]) {
+            lo = mid;
+        } else {
+            return mid;
+        }
+    }
+    while (lo > 0 and lines[lo - 1].a[0] >= point[0]) {
+        lo -= 1;
+    }
+    return lo;
+}
+
+fn indexOfClosestLineY(lines: []Line, point: Vec) u64 {
+    var lo: u64 = 0;
+    var hi: u64 = lines.len;
+    while (lo < hi) {
+        const mid = (hi + lo) / 2;
+        const l = lines[mid];
+        if (point[1] < l.a[1]) {
+            hi = mid;
+        } else if (point[1] > l.a[1]) {
+            lo = mid;
+        } else {
+            return mid;
+        }
+    }
+    while (lo > 0 and lines[lo - 1].a[1] >= point[1]) {
+        lo -= 1;
+    }
+    return lo;
+}
+
+fn makeLines(arena: Allocator, points: []Vec) ![]Line {
+    var lines: List(Line) = .empty;
+    for (0..points.len) |i| {
+        try lines.append(arena, .init(points[i], points[(i + 1) % points.len]));
     }
     return try lines.toOwnedSlice(arena);
 }
 
+fn calcArea(p1: Vec, p2: Vec) u64 {
+    const x_min = @min(p1[0], p2[0]);
+    const y_min = @min(p1[1], p2[1]);
+    const x_max = @max(p1[0], p2[0]);
+    const y_max = @max(p1[1], p2[1]);
+    return @intCast((x_max - x_min + 1) * (y_max - y_min + 1));
+}
+
 fn parseInput(arena: std.mem.Allocator, in: []const u8) ![]Vec {
-    var point_list: ArrayList(Vec) = .empty;
+    var point_list: List(Vec) = .empty;
     var in_it = std.mem.splitScalar(u8, in, '\n');
     while (in_it.next()) |line| {
         if (line.len == 0) {
@@ -244,93 +350,4 @@ fn parseInput(arena: std.mem.Allocator, in: []const u8) ![]Vec {
     }
 
     return try point_list.toOwnedSlice(arena);
-}
-
-fn first(arena: std.mem.Allocator) !void {
-    input.header(9, 1);
-    // const in = try input.get(9);
-    const in =
-        \\7,1
-        \\11,1
-        \\11,7
-        \\9,7
-        \\9,5
-        \\2,5
-        \\2,3
-        \\7,3
-        \\
-    ;
-
-    const points = try parseInput(arena, in);
-    print("{any}\n", .{points});
-
-    // print("Largest possible rectangle: {}\n", .{max});
-}
-
-fn printPolygon(
-    buf: []u8,
-    buf_width: u64,
-    x: u64,
-    y: u64,
-    poly_corners: []const Vec,
-    char: u8,
-    comptime title: []const u8,
-    args: anytype,
-) void {
-    const xs: i64 = @intCast(x);
-    const ys: i64 = @intCast(y);
-    // const poly_m = measurePolygon(poly_corners);
-    _ = std.fmt.bufPrint(buf[y * buf_width + x ..], "[" ++ title ++ "]", args) catch unreachable;
-    for (poly_corners) |c| {
-        const cx: u64 = @intCast(xs + c[0]);
-        const cy: u64 = @intCast(ys + c[1] + 1);
-        if (buf[cy * buf_width + cx] != '.') {
-            buf[cy * buf_width + cx] = 'X';
-        } else {
-            buf[cy * buf_width + cx] = char;
-        }
-    }
-}
-
-fn measurePolygon(poly_corners: []const Vec) struct {
-    x_min: i64,
-    y_min: i64,
-    x_max: i64,
-    y_max: i64,
-    width: u64,
-    height: u64,
-} {
-    var x_min: i64 = std.math.maxInt(i64);
-    var y_min: i64 = std.math.maxInt(i64);
-    var x_max: i64 = 0;
-    var y_max: i64 = 0;
-
-    for (poly_corners) |c| {
-        x_min = @min(x_min, c[0]);
-        y_min = @min(y_min, c[1]);
-        x_max = @max(x_max, c[0]);
-        y_max = @max(y_max, c[1]);
-    }
-
-    return .{
-        .x_min = x_min,
-        .y_min = y_min,
-        .x_max = x_max,
-        .y_max = y_max,
-        .width = @intCast(x_max - x_min + 1),
-        .height = @intCast(y_max - y_min + 1),
-    };
-}
-
-fn resetBuf(buf: []u8) void {
-    @memset(buf, '.');
-}
-
-fn printBuf(buf: []u8, buf_width: u64, buf_height: u64) void {
-    for (0..buf_height) |y| {
-        for (0..buf_width) |x| {
-            print("{c}", .{buf[y * buf_width + x]});
-        }
-        print("\n", .{});
-    }
 }

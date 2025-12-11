@@ -36,7 +36,7 @@ pub fn main() !void {
     // try six.run();
     // try seven.run(arena);
     // try eight.run(arena);
-    // try nine.run(arena);
+    try nine.run(arena);
     // try ten.run(arena);
-    try eleven.run(arena);
+    // try eleven.run(arena);
 }
