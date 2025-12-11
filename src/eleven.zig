@@ -45,7 +45,29 @@ fn first(arena: std.mem.Allocator) !void {
         }
     }
 
-    print("\nTotal paths from \"you\" to \"out\": {}\n", .{sum});
+    const res = countPaths(arena, graph, "you", "out");
+
+    print("\nTotal paths from \"you\" to \"out\": {}\n", .{res});
+}
+
+fn countPaths(arena: Allocator, graph: Graph, from: string, to: string) {
+    var stack: List([]const u8) = .empty;
+    try stack.append(arena, "you");
+
+    var sum: u64 = 0;
+    while (stack.items.len > 0) {
+        const dev = stack.swapRemove(0);
+        const outs_found = graph.get(dev);
+
+        if (outs_found) |outs| {
+            for (outs.items) |o| {
+                try stack.append(arena, o);
+            }
+        } else {
+            sum += 1;
+        }
+    }
+    return sum;
 }
 
 fn second(arena: std.mem.Allocator) !void {
