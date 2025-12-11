@@ -154,40 +154,45 @@ fn second(arena: std.mem.Allocator) !void {
     // print("Largest possible rectangle: {}\n", .{max});
 }
 
-fn secondRec(
-    arena: std.mem.Allocator,
-    W: []u64,
-    W_i: u64,
-    V: [][]u64,
-    T: []const u64,
-    T_CUR: []u64,
-    best: *u64,
-) u64 {
-    var sum_weights: u64 = 0;
-    for (0..V.len) |i| {
-        sum_weights += W[i];
+// X * V = T
+// fn secondRec(
+//     arena: std.mem.Allocator,
+//     W: []u64,
+//     W_i: u64,
+//     V: [][]u64,
+//     T: []const u64,
+//     T_CUR: []u64,
+//     best: *u64,
+// ) u64 {
+//     var sum_weights: u64 = 0;
+//     for (0..V.len) |i| {
+//         sum_weights += W[i];
 
-        for (0..V[i].len) |j| {
-            T_CUR[j] = W[i] * V[i][j];
-        }
-    }
+//         for (0..V[i].len) |j| {
+//             T_CUR[j] = W[i] * V[i][j];
+//         }
+//     }
 
-    if (sum_weights >= best.*) {
-        return 0;
-    }
+//     if (sum_weights >= best.*) {
+//         return 0;
+//     }
 
-    var all_equal = true;
-    for (0..T.len) |i| {
-        if (T_CUR[i] > T[i]) {
-            return 0;
-        }
-        if (T_CUR[i] != T[i]) {
-            all_equal = false;
-        }
-    }
+//     var diff_t_min: u64 = std.math.intMax(u64);
+//     var all_equal = true;
+//     for (0..T.len) |i| {
+//         if (T_CUR[i] > T[i]) {
+//             return 0;
+//         }
+//         if (T_CUR[i] != T[i]) {
+//             all_equal = false;
+//         }
+//         diff_t_min = @min(diff_t_min, T_CUR[i] - T[i]);
+//     }
 
-    if (all_equal) {
-        best.* = sum_weights;
-        return sum_weights;
-    }
-}
+//     if (all_equal) {
+//         best.* = sum_weights;
+//         return sum_weights;
+//     }
+
+//     // for (0..diff_t_min) |i| {}
+// }
