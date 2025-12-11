@@ -22,49 +22,27 @@ pub fn run(arena: std.mem.Allocator) !void {
 fn first(arena: std.mem.Allocator) !void {
     input.header(11, 1);
     const in = try input.get(11);
-
     const graph = try parse(arena, in);
-    const dev_count = std.mem.count(u8, in, "\n") + 1;
-    const scores = try arena.alloc(u64, dev_count);
-    @memset(scores, 0);
-
-    var stack: List([]const u8) = .empty;
-    try stack.append(arena, "you");
-
-    var sum: u64 = 0;
-    while (stack.items.len > 0) {
-        const dev = stack.swapRemove(0);
-        const outs_found = graph.get(dev);
-
-        if (outs_found) |outs| {
-            for (outs.items) |o| {
-                try stack.append(arena, o);
-            }
-        } else {
-            sum += 1;
-        }
-    }
 
     const res = countPaths(arena, graph, "you", "out");
-
     print("\nTotal paths from \"you\" to \"out\": {}\n", .{res});
 }
 
-fn countPaths(arena: Allocator, graph: Graph, from: string, to: string) {
+fn countPaths(arena: Allocator, graph: Graph, from: string, to: string) u64 {
     var stack: List([]const u8) = .empty;
-    try stack.append(arena, "you");
+    stack.append(arena, from) catch unreachable;
 
     var sum: u64 = 0;
     while (stack.items.len > 0) {
         const dev = stack.swapRemove(0);
         const outs_found = graph.get(dev);
 
-        if (outs_found) |outs| {
-            for (outs.items) |o| {
-                try stack.append(arena, o);
-            }
-        } else {
+        if (common.strEql(dev, to)) {
             sum += 1;
+        } else if (outs_found) |outs| {
+            for (outs.items) |o| {
+                stack.append(arena, o) catch unreachable;
+            }
         }
     }
     return sum;
