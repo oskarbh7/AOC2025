@@ -24,6 +24,11 @@ const Line = struct {
         return self.b - self.a;
     }
 
+    pub fn cutEnds(self: Line) Line {
+        const dir = normalize(self.getDir());
+        return .init(self.a + dir, self.b - dir);
+    }
+
     pub fn containsPoint(self: Line, p: Vec) bool {
         const dir_self: Vec = self.b - self.a;
         const dir_self_p: Vec = p - self.a;
@@ -59,11 +64,11 @@ const Line = struct {
     }
 
     /// Sorting
-    pub fn ascVert(_: void, self: Line, other: Line) bool {
+    pub fn ascX(_: void, self: Line, other: Line) bool {
         return self.a[0] < other.a[0];
     }
 
-    pub fn ascHorz(_: void, self: Line, other: Line) bool {
+    pub fn ascY(_: void, self: Line, other: Line) bool {
         return self.a[1] < other.a[1];
     }
 };
@@ -108,18 +113,18 @@ fn first(arena: std.mem.Allocator) !void {
 
 fn second(arena: std.mem.Allocator) !void {
     input.header(9, 2);
-    const in = try input.get(9);
-    // const in =
-    //     \\7,1
-    //     \\11,1
-    //     \\11,7
-    //     \\9,7
-    //     \\9,5
-    //     \\2,5
-    //     \\2,3
-    //     \\7,3
-    //     \\
-    // ;
+    // const in = try input.get(9);
+    const in =
+        \\7,1
+        \\11,1
+        \\11,7
+        \\9,7
+        \\9,5
+        \\2,5
+        \\2,3
+        \\7,3
+        \\
+    ;
 
     const points = try parseInput(arena, in);
     const lines = try makeLines(arena, points);
@@ -137,8 +142,8 @@ fn second(arena: std.mem.Allocator) !void {
         }
     }
 
-    std.sort.pdq(Line, lines_vert.items, {}, Line.ascVert);
-    std.sort.pdq(Line, lines_horz.items, {}, Line.ascHorz);
+    std.sort.pdq(Line, lines_vert.items, {}, Line.ascX);
+    std.sort.pdq(Line, lines_horz.items, {}, Line.ascY);
     print("\n\n", .{});
 
     var area_max: u64 = 0;
@@ -155,110 +160,67 @@ fn second(arena: std.mem.Allocator) !void {
 
             const T = calcArea(rect_corners[0], rect_corners[2]);
             if (T <= area_max) {
-                // print("\t{any} has too low area ({}), skipping...\n", .{ rect_corners, T });
                 continue;
             }
 
             // Corner tests
-            for (rect_corners) |corner| {
-                const vert_i = indexOfClosestLineX(lines_vert.items, corner);
-                const horz_i = indexOfClosestLineY(lines_horz.items, corner);
+            // corner_test: for (rect_corners) |corner| {
+            //     var vline_i = indexOfFirstLineWithX(lines_vert.items, corner[0]);
+            //     while (vline_i < lines_vert.items.len and lines_vert.items[vline_i].a[0] == corner[0]) {
+            //         if (lines_vert.items[vline_i].containsPoint(corner)) {
+            //             print("\t{any} passed the corner line-containment test\n", .{corner});
+            //             continue :corner_test;
+            //         }
+            //         vline_i += 1;
+            //     }
 
-                const line_closest_vert = lines_vert.items[vert_i];
-                const line_closest_horz = lines_horz.items[horz_i];
+            //     var hline_i = indexOfFirstLineWithY(lines_horz.items, corner[1]);
+            //     while (hline_i < lines_horz.items.len and lines_horz.items[hline_i].a[0] == corner[0]) {
+            //         if (lines_horz.items[hline_i].containsPoint(corner)) {
+            //             print("\t{any} passed the corner line-containment test\n", .{corner});
+            //             continue :corner_test;
+            //         }
+            //         hline_i += 1;
+            //     }
 
-                // Passed; inside
-                if (line_closest_vert.containsPoint(corner) or
-                    line_closest_horz.containsPoint(corner))
-                {
-                    print("\t{any} passed the line-containment test\n", .{corner});
-                    continue;
-                }
+            //     print("\t{any} did NOT pass the corner line-containment test\n", .{corner});
+            //     continue :j_loop;
+            // }
 
-                const ray: Line = .init(corner + Vec{ 1, 0 }, corner + Vec{ 1 << 20, 0 });
-
-                var did_intersect = false;
-                for (vert_i..lines_vert.items.len) |k| {
-                    const line_to_intersect = lines_vert.items[k];
-                    if (!ray.intersects(line_to_intersect)) {
-                        continue;
-                    }
-
-                    did_intersect = true;
-                    const cross_sign = Line.crossSign(ray.getDir(), line_to_intersect.getDir());
-                    // print("{any} intersects {any} with cross sign {}\n", .{ ray, line_to_intersect, cross_sign });
-                    // Passed; outside
-                    if (cross_sign > 0) {
-                        print(
-                            "\t{any} passed the ray cast test (sign:{}, line: {any})\n",
-                            .{ corner, cross_sign, line_to_intersect },
-                        );
-                        break;
-                    }
-
-                    print("\t{any} FAILED the ray cast test\n", .{corner});
-                    continue :j_loop;
-                }
-
-                if (!did_intersect) {
-                    continue :j_loop;
-                }
-
-                // const closest_vert = lines_vert.items[closest_vert_i];
-                // const closest_horz = lines_horz.items[closest_horz_i];
-
-                // print("closest line vert to {any} is {any}\n", .{ corner, closest_vert });
-                // print("closest line horz to {any} is {any}\n", .{ corner, closest_horz });
-            }
-
-            // Line tests
-            const dir1 = normalize(rect_corners[1] - rect_corners[0]);
-            const dir2 = normalize(rect_corners[2] - rect_corners[1]);
-            const dir3 = normalize(rect_corners[3] - rect_corners[2]);
-            const dir4 = normalize(rect_corners[0] - rect_corners[3]);
-            const rect_lines: [4]Line = .{
-                .init(rect_corners[0] + dir1, rect_corners[1] - dir1),
-                .init(rect_corners[1] + dir2, rect_corners[2] - dir2),
-                .init(rect_corners[2] + dir3, rect_corners[3] - dir3),
-                .init(rect_corners[3] + dir4, rect_corners[0] - dir4),
-            };
-
+            // Line intersection tests
             var x_min: i64 = 0;
+            var y_min: i64 = 0;
             var x_max: i64 = 0;
+            var y_max: i64 = 0;
             for (rect_corners) |corner| {
                 x_min = @min(x_min, corner[0]);
+                y_min = @min(y_min, corner[1]);
                 x_max = @max(x_max, corner[0]);
+                y_max = @max(y_max, corner[1]);
             }
 
-            print(
-                "These corners: {any} and these lines: {any}\n",
-                .{ rect_corners, rect_lines },
-            );
+            const vline_idx_min = indexOfFirstLineWithX(lines_vert.items, x_min);
+            var vline_idx_max = vline_idx_min;
+            while (vline_idx_max < lines_vert.items.len and lines_vert.items[vline_idx_min].a[0] <= x_max) {
+                vline_idx_max += 1;
+            }
 
-            for (rect_lines) |line| {
-                var idx = indexOfClosestLineX(lines_vert.items, .{ x_min, 0 });
-                while (lines_vert.items[idx].a[0] <= x_max) {
-                    const dir = normalize(lines_vert.items[idx].getDir());
-                    const line_to_test = lines_vert.items[idx];
-                    const line_to_test_cut: Line = .init(line_to_test.a + dir, line_to_test.b - dir);
+            for (@intCast(y_min)..@intCast(y_max + 1)) |y| {
+                const rect_line: Line = .init(
+                    .{ @intCast(x_min), @intCast(y) },
+                    .{ @intCast(x_max), @intCast(y) },
+                );
+                for (vline_idx_min..vline_idx_max) |vline_idx| {
+                    const vline = lines_vert.items[vline_idx].cutEnds();
                     print(
-                        "\tintersection testing {any} against {any}\n",
-                        .{ line, line_to_test_cut },
+                        "\nTesting intersection between rect line {any} and vline {any}\n",
+                        .{ rect_line, vline },
                     );
-                    if (line.intersects(line_to_test_cut)) {
-                        print(
-                            "\t{any} FAILED the rect-line intersection test (against {any})\n",
-                            .{ line, line_to_test_cut },
-                        );
+                    if (rect_line.intersects(vline)) {
+                        print("\tFAILED the rect line intersection test\n", .{});
                         continue :j_loop;
                     }
-                    idx += 1;
-                    if (idx == lines_vert.items.len) {
-                        break;
-                    }
                 }
-
-                print("\t{any} passed the rect-line intersection test\n", .{line});
             }
 
             area_max = T;
@@ -268,41 +230,41 @@ fn second(arena: std.mem.Allocator) !void {
     print("Largest area: {}\n", .{area_max});
 }
 
-fn indexOfClosestLineX(lines: []Line, point: Vec) u64 {
+fn indexOfFirstLineWithX(lines: []Line, x: i64) u64 {
     var lo: u64 = 0;
     var hi: u64 = lines.len;
     while (lo < hi) {
         const mid = (hi + lo) / 2;
         const l = lines[mid];
-        if (point[0] < l.a[0]) {
+        if (x < l.a[0]) {
             hi = mid;
-        } else if (point[0] > l.a[0]) {
+        } else if (x > l.a[0]) {
             lo = mid;
         } else {
             return mid;
         }
     }
-    while (lo > 0 and lines[lo - 1].a[0] >= point[0]) {
+    while (lo > 0 and lines[lo - 1].a[0] >= x) {
         lo -= 1;
     }
     return lo;
 }
 
-fn indexOfClosestLineY(lines: []Line, point: Vec) u64 {
+fn indexOfFirstLineWithY(lines: []Line, y: i64) u64 {
     var lo: u64 = 0;
     var hi: u64 = lines.len;
     while (lo < hi) {
         const mid = (hi + lo) / 2;
         const l = lines[mid];
-        if (point[1] < l.a[1]) {
+        if (y < l.a[1]) {
             hi = mid;
-        } else if (point[1] > l.a[1]) {
+        } else if (y > l.a[1]) {
             lo = mid;
         } else {
             return mid;
         }
     }
-    while (lo > 0 and lines[lo - 1].a[1] >= point[1]) {
+    while (lo > 0 and lines[lo - 1].a[1] >= y) {
         lo -= 1;
     }
     return lo;

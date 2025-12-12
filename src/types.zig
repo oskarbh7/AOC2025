@@ -12,12 +12,14 @@ pub const Matrix = struct {
     cols: u64,
     rows: u64,
 
-    pub fn idx(self: *const Matrix, i: u64, j: u64) u8 {
-        return self.buf[i * self.cols + j];
+    pub fn init(arena: std.mem.Allocator, rows: u64, cols: u64, char_init: u8) Matrix {
+        const buf = arena.alloc(u8, rows * cols) catch unreachable;
+        @memset(buf, char_init);
+        return .{ .buf = buf, .cols = cols, .rows = rows };
     }
 
-    pub fn idxPtr(self: *const Matrix, i: u64, j: u64) *u8 {
-        return &self.buf[i * self.cols + j];
+    pub fn get(self: *const Matrix, i: u64, j: u64) u8 {
+        return self.buf[i * self.cols + j];
     }
 
     pub fn set(self: *const Matrix, i: u64, j: u64, char: u8) void {
@@ -30,8 +32,8 @@ pub const Matrix = struct {
                 if (j <= i) {
                     continue;
                 }
-                const tmp = self.idx(i, j);
-                self.set(i, j, self.idx(j, i));
+                const tmp = self.get(i, j);
+                self.set(i, j, self.get(j, i));
                 self.set(j, i, tmp);
             }
         }
@@ -46,7 +48,7 @@ pub const Matrix = struct {
             for (0..self.rows) |j| {
                 var sum: u8 = 0;
                 for (0..self.cols) |k| {
-                    sum += self.idx(i, k) * self.idx(k, i);
+                    sum += self.get(i, k) * self.get(k, i);
                 }
                 M.set(i, j, sum);
             }
@@ -55,7 +57,53 @@ pub const Matrix = struct {
         @memcpy(self.buf, buf);
     }
 
-    pub fn toStr(self: *const Matrix) []u8 {
+    pub fn rotateCW(self: Matrix, arena: std.mem.Allocator) Matrix {
+        const cols = self.rows;
+        const rows = self.cols;
+        const buf = arena.alloc(u8, cols * rows) catch unreachable;
+        for (0..self.rows) |i| {
+            for (0..self.cols) |j| {
+                buf[j * cols + (cols - i - 1)] = self.buf[i * cols + j];
+            }
+        }
+        return .{ .buf = buf, .cols = cols, .rows = rows };
+    }
+
+    pub fn flipH(self: Matrix, arena: std.mem.Allocator) Matrix {
+        const buf = arena.alloc(u8, self.cols * self.rows) catch unreachable;
+        @memcpy(buf, self.buf);
+        const M: Matrix = .{ .buf = buf, .cols = self.cols, .rows = self.rows };
+
+        for (0..self.rows / 2) |i| {
+            for (0..self.cols) |j| {
+                const i_inv = self.rows - i - 1;
+                const tmp = M.get(i, j);
+                M.set(i, j, M.get(i_inv, j));
+                M.set(i_inv, j, tmp);
+            }
+        }
+
+        return M;
+    }
+
+    pub fn flipV(self: Matrix, arena: std.mem.Allocator) Matrix {
+        const buf = arena.alloc(u8, self.cols * self.rows) catch unreachable;
+        @memcpy(buf, self.buf);
+        const M: Matrix = .{ .buf = buf, .cols = self.cols, .rows = self.rows };
+
+        for (0..self.rows) |i| {
+            for (0..self.cols / 2) |j| {
+                const j_inv = self.rows - j - 1;
+                const tmp = M.get(i, j);
+                M.set(i, j, M.get(i, j_inv));
+                M.set(i, j_inv, tmp);
+            }
+        }
+
+        return M;
+    }
+
+    pub fn toString(self: *const Matrix) []u8 {
         var buf = common.getBuf();
         var w: std.Io.Writer = .fixed(buf);
         for (0..self.rows + 3) |i| {
@@ -77,7 +125,7 @@ pub const Matrix = struct {
                 } else if (j == self.cols + 1) {
                     w.print("{c: >3}", .{'|'}) catch unreachable;
                 } else {
-                    w.print("{: >3}", .{self.idx(i - 2, j - 1)}) catch unreachable;
+                    w.print("{c: >3}", .{self.get(i - 2, j - 1)}) catch unreachable;
                 }
             }
             w.print("\n", .{}) catch unreachable;
